@@ -3,6 +3,7 @@
     <select @change="changeSelect" v-model="selected">
       <option value="line">line</option>
       <option value="arrow">arrow</option>
+      <option value="circle">circle</option>
     </select>
     <canvas width="800" height="600"
     @mousedown="mouseDown($event)" 
@@ -20,29 +21,37 @@ export default {
   name: 'App',
   data() {
     return {
-      selected: 'line',
+      selected: 'circle',
       canvas: '',
       ctx: '',
       w: 0,
       h: 0,
       lock: false, //ismove
-      clickDrag: [],
-      lineX: [],
-      lineY: [],
       status: {
         lineArr: [],
         arrowArr: [],
+        circleArr: []
       },
       type: {
-        line: true,
-        arrow: false
+        line: false,
+        arrow: false,
+        circle: true
       },
+      //画线参数
+      clickDrag: [],
+      lineX: [],
+      lineY: [],
       //箭头参数
       beginPoint: {
         x: 0,
         y: 0
       },
       stopPoint: {
+        x: 0,
+        y: 0
+      },
+      //圆形参数
+      storage: {
         x: 0,
         y: 0
       },
@@ -58,7 +67,7 @@ export default {
   methods: {
     changeSelect() {
       for (let i in this.type) {
-        if(i == this.selected) {
+        if (i == this.selected) {
           this.type[i] = true
         }else {
           this.type[i] = false
@@ -73,20 +82,23 @@ export default {
     },
     mouseDown(e) {
       this.lock = true;
-      if(this.type.line) {
+      if (this.type.line) {
         this.movePoint(e.offsetX, e.offsetY);
         this.drawPoint(this.lineX, this.lineY, this.clickDrag, 3, '#000000');
-      }else if(this.type.arrow) {
+      }else if (this.type.arrow) {
         this.beginPoint.x = e.offsetX;
         this.beginPoint.y = e.offsetY;
+      }else if (this.type.circle) {
+        this.storage.x = e.offsetX;
+        this.storage.y = e.offsetY;
       } 
     },
     mouseMove(e) {
-      if(this.lock) {
-        if(this.type.line) {
+      if (this.lock) {
+        if (this.type.line) {
           this.movePoint(e.offsetX, e.offsetY);
           this.drawPoint(this.lineX, this.lineY, this.clickDrag, 3, '#000000');
-        }else if(this.type.arrow) {
+        }else if (this.type.arrow) {
           this.stopPoint.x = e.offsetX;
           this.stopPoint.y = e.offsetY;
           this.clearCanvas();
@@ -94,17 +106,37 @@ export default {
           this.arrowCoord(this.beginPoint, this.stopPoint, 10, 25, 15);
           this.sideCoord();
           this.drawArrow('#DC143C');
+        }else if (this.type.circle) {
+          let pointX;
+          let pointY;
+          let lineX;
+          let lineY;
+          if (this.storage.x > e.offsetX) {
+            pointX = this.storage.x - Math.abs(this.storage.x - e.offsetX) / 2
+          }else {
+            pointX = Math.abs(this.storage.x - e.offsetX) / 2 + this.storage.x;
+          }
+          if (this.storage.y > e.offsetY) {
+            pointY = this.storage.y - Math.abs(this.storage.y - e.offsetY) / 2;
+          } else {
+            pointY = Math.abs(this.storage.y - e.offsetY) / 2 + this.storage.y;
+          }
+          lineX = Math.abs(this.storage.x - e.offsetX) / 2;
+          lineY = Math.abs(this.storage.y - e.offsetY) / 2;
+          this.clearCanvas();
+          this.redrawAll();
+          this.drawEllipse(pointX, pointY, lineX, lineY, 3, '#3300CC');
         }
         
       }
     },
     mouseUp(e) {
-      if(this.type.line) {
+      if (this.type.line) {
         this.status.lineArr.push({ x: this.lineX, y: this.lineY, clickDrag: this.clickDrag, lineWidth: 3, color: '#000000'})
         this.lineX = [];
         this.lineY = [];
         this.clickDrag = [];
-      }else if(this.type.arrow) {
+      }else if (this.type.arrow) {
         var tempObj = {
           beginPoint: this.beginPoint,
           stopPoint: { x: e.offsetX, y: e.offsetY },
@@ -115,6 +147,33 @@ export default {
         this.beginPoint = {
           x: 0,
           y: 0
+        };
+      }else if (this.type.circle) {
+        let pointX;
+        let pointY;
+        let lineX;
+        let lineY;
+        if (this.storage.x > e.offsetX) {
+          pointX = this.storage.x - Math.abs(this.storage.x - e.offsetX) / 2
+        }else {
+          pointX = Math.abs(this.storage.x - e.offsetX) / 2 + this.storage.x;
+        }
+        if (this.storage.y > e.offsetY) {
+          pointY = this.storage.y - Math.abs(this.storage.y - e.offsetY) / 2;
+        } else {
+          pointY = Math.abs(this.storage.y - e.offsetY) / 2 + this.storage.y;
+        }
+        lineX = Math.abs(this.storage.x - e.offsetX) / 2;
+        lineY = Math.abs(this.storage.y - e.offsetY) / 2;
+        this.status.circleArr.push({
+          x: pointX,
+          y: pointY,
+          a: lineX,
+          b: lineY,
+          color: '#3300CC',
+          lineWidth: 3
+        });
+        this.storage = {
         };
       }
       this.lock = false;
@@ -176,22 +235,39 @@ export default {
       this.ctx.closePath();
       this.ctx.fill();
     },
+    //绘制圆圈
+    drawEllipse(x, y, a, b, lineWidth, color) {
+      this.ctx.beginPath();
+      this.ctx.ellipse(x, y, a, b, 0, 0, 2 * Math.PI);
+      this.ctx.lineWidth = lineWidth;
+      this.ctx.fillStyle = 'rgba(0,0,0,0)';
+      this.ctx.strokeStyle = color;
+      this.ctx.fill();
+      this.ctx.stroke();
+    },
     //重绘canvas
     redrawAll() {
       let arrow = this.status.arrowArr;
       let line = this.status.lineArr;
-      if(arrow.length) {
+      let circle = this.status.circleArr;
+
+      if (arrow.length) {
         arrow.forEach(val => {
-          if(val.beginPoint != {}) {
+          if (val.beginPoint != {}) {
             this.arrowCoord(val.beginPoint, val.stopPoint, val.range, 25, 15);
             this.sideCoord();
             this.drawArrow(val.color);
           }
         })
       };
-      if(line.length) {
+      if (line.length) {
         line.forEach(val => {
           this.drawPoint(val.x, val.y, val.clickDrag, val.lineWidth, val.color)
+        })
+      };
+      if(circle.length) {
+        circle.forEach(val => {
+          this.drawEllipse(val.x, val.y, val.a, val.b, val.lineWidth, val.color)
         })
       }
     },
