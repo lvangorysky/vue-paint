@@ -4,14 +4,13 @@
       <option value="line">line</option>
       <option value="arrow">arrow</option>
       <option value="circle">circle</option>
+      <option value="rect">rect</option>
     </select>
     <canvas width="800" height="600"
     @mousedown="mouseDown($event)" 
     @mousemove="mouseMove($event)"
     @mouseup="mouseUp($event)"
     ref="canvas"></canvas>
-    <!-- <button :disabled="count > 19 || count < 15">
-    </button> -->
   </div>
 </template>
 
@@ -21,7 +20,7 @@ export default {
   name: 'App',
   data() {
     return {
-      selected: 'circle',
+      selected: 'rect',
       canvas: '',
       ctx: '',
       w: 0,
@@ -30,12 +29,14 @@ export default {
       status: {
         lineArr: [],
         arrowArr: [],
-        circleArr: []
+        circleArr: [],
+        rectArr: []
       },
       type: {
         line: false,
         arrow: false,
-        circle: true
+        circle: false,
+        rect: true
       },
       //画线参数
       clickDrag: [],
@@ -54,6 +55,14 @@ export default {
       storage: {
         x: 0,
         y: 0
+      },
+      rect: {
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        realX: 0,
+        realY: 0
       },
       polygonVertex: [],
       angle: 0,
@@ -91,7 +100,10 @@ export default {
       }else if (this.type.circle) {
         this.storage.x = e.offsetX;
         this.storage.y = e.offsetY;
-      } 
+      }else if (this.type.rect) {
+        this.rect.x = e.offsetX;
+        this.rect.y = e.offsetY;
+      }
     },
     mouseMove(e) {
       if (this.lock) {
@@ -126,8 +138,23 @@ export default {
           this.clearCanvas();
           this.redrawAll();
           this.drawEllipse(pointX, pointY, lineX, lineY, 3, '#3300CC');
+        }else if (this.type.rect) {
+          this.rect.width = Math.abs(this.rect.x - e.offsetX);
+          this.rect.height = Math.abs(this.rect.y - e.offsetY);
+          if (this.rect.x > e.offsetX) {
+            this.rect.realX = e.offsetX
+          } else {
+            this.rect.realX = this.rect.x
+          }
+          if (this.rect.y > e.offsetY) {
+            this.rect.realY = e.offsetY
+          } else {
+            this.rect.realY = this.rect.y
+          }
+          this.clearCanvas();
+          this.redrawAll();
+          this.drawRect(this.rect.realX, this.rect.realY, this.rect.width, this.rect.height, 4, '#13E403', 3)
         }
-        
       }
     },
     mouseUp(e) {
@@ -175,6 +202,24 @@ export default {
         });
         this.storage = {
         };
+      }else if (this.type.rect) {
+        this.status.rectArr.push({
+          realX: this.rect.realX,
+          realY: this.rect.realY,
+          width: this.rect.width,
+          height: this.rect.height,
+          radius: 4,
+          color: '#13E403',
+          lineWidth: 3
+        })
+        this.rect = {
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          realX: 0,
+          realY: 0
+        }
       }
       this.lock = false;
     },
@@ -245,12 +290,33 @@ export default {
       this.ctx.fill();
       this.ctx.stroke();
     },
+    //绘制矩形
+    drawRect(realX, realY, width, height, radius, color, lineWidth){
+      this.createRect(realX, realY, width, height, radius, color, 'stroke', lineWidth)
+    },
+    createRect (x, y, width, height, radius, color, type ,lineWidth) { 
+      //绘制圆
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y + radius);
+      this.ctx.lineTo(x, y + height - radius);
+      this.ctx.quadraticCurveTo(x, y + height, x + radius, y + height);
+      this.ctx.lineTo(x + width - radius, y + height);
+      this.ctx.quadraticCurveTo(x + width, y + height, x + width, y + height - radius);                                                                                                                              
+      this.ctx.lineTo(x + width, y + radius);
+      this.ctx.quadraticCurveTo(x + width, y, x + width - radius, y);
+      this.ctx.lineTo(x + radius, y);
+      this.ctx.quadraticCurveTo(x, y, x, y + radius);
+      this.ctx[type + 'Style'] = color;
+      this.ctx.lineWidth = lineWidth;
+      this.ctx.closePath();
+      this.ctx[type]();
+    },
     //重绘canvas
     redrawAll() {
       let arrow = this.status.arrowArr;
       let line = this.status.lineArr;
       let circle = this.status.circleArr;
-
+      let rect = this.status.rectArr;
       if (arrow.length) {
         arrow.forEach(val => {
           if (val.beginPoint != {}) {
@@ -268,6 +334,11 @@ export default {
       if(circle.length) {
         circle.forEach(val => {
           this.drawEllipse(val.x, val.y, val.a, val.b, val.lineWidth, val.color)
+        })
+      }
+      if(rect.length) {
+        rect.forEach(val => {
+          this.drawRect(val.realX, val.realY, val.width, val.height, val.radius, val.color, val.lineWidth)
         })
       }
     },
