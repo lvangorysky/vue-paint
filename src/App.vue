@@ -6,6 +6,34 @@
       <option value="circle">circle</option>
       <option value="rect">rect</option>
     </select>
+    <div>
+      <span>颜色:  </span>
+      <input v-model="params.color" type="text">
+    </div>
+    <div>
+      <span>粗细:  </span>
+      <input v-model="params.lineWidth" type="text">
+    </div>
+    <div v-if="type.rect">
+      <span>圆角:  </span>
+      <input v-model="params.radius" type="text">
+    </div>
+
+    <div v-if="type.arrow">
+      <span>箭头范围:  </span>
+      <input v-model="params.range" type="text">
+    </div>
+
+    <div v-if="type.arrow">
+      <span>箭头边长:  </span>
+      <input v-model="params.edge" type="text">
+    </div>
+
+    <div v-if="type.arrow">
+      <span>箭头角度:  </span>
+      <input v-model="params.angle" type="text">
+    </div>
+
     <canvas width="800" height="600"
     @mousedown="mouseDown($event)" 
     @mousemove="mouseMove($event)"
@@ -21,6 +49,14 @@ export default {
   data() {
     return {
       selected: 'rect',
+      params: {
+        color: '#333333',
+        lineWidth: 2,
+        radius: 4,
+        range: 40,
+        edge: 25,
+        angle: 15
+      },
       canvas: '',
       ctx: '',
       w: 0,
@@ -68,6 +104,20 @@ export default {
       angle: 0,
     }
   },
+  watch: {
+    params: {
+      handler: (val) => {
+        
+        let re = /^[0-9]+.?[0-9]*/ ;
+        for(let i in val) {
+          if(i !== 'color') {
+            val[i] = Number(val[i])
+          }
+        }
+      },
+      deep: true
+    }
+  },
   created() {
     this.$nextTick( () => {
       this.init();
@@ -81,6 +131,7 @@ export default {
         }else {
           this.type[i] = false
         }
+      
       }
     },
     init() {
@@ -93,7 +144,7 @@ export default {
       this.lock = true;
       if (this.type.line) {
         this.movePoint(e.offsetX, e.offsetY);
-        this.drawPoint(this.lineX, this.lineY, this.clickDrag, 3, '#000000');
+        this.drawPoint(this.lineX, this.lineY, this.clickDrag, this.params.lineWidth, this.params.color);
       }else if (this.type.arrow) {
         this.beginPoint.x = e.offsetX;
         this.beginPoint.y = e.offsetY;
@@ -109,15 +160,15 @@ export default {
       if (this.lock) {
         if (this.type.line) {
           this.movePoint(e.offsetX, e.offsetY);
-          this.drawPoint(this.lineX, this.lineY, this.clickDrag, 3, '#000000');
+          this.drawPoint(this.lineX, this.lineY, this.clickDrag, this.params.lineWidth, this.params.color);
         }else if (this.type.arrow) {
           this.stopPoint.x = e.offsetX;
           this.stopPoint.y = e.offsetY;
           this.clearCanvas();
           this.redrawAll();
-          this.arrowCoord(this.beginPoint, this.stopPoint, 10, 25, 15);
+          this.arrowCoord(this.beginPoint, this.stopPoint, this.params.range, this.params.edge, this.params.angle);
           this.sideCoord();
-          this.drawArrow('#DC143C');
+          this.drawArrow(this.params.color);
         }else if (this.type.circle) {
           let pointX;
           let pointY;
@@ -137,7 +188,7 @@ export default {
           lineY = Math.abs(this.storage.y - e.offsetY) / 2;
           this.clearCanvas();
           this.redrawAll();
-          this.drawEllipse(pointX, pointY, lineX, lineY, 3, '#3300CC');
+          this.drawEllipse(pointX, pointY, lineX, lineY, this.params.lineWidth, this.params.color);
         }else if (this.type.rect) {
           this.rect.width = Math.abs(this.rect.x - e.offsetX);
           this.rect.height = Math.abs(this.rect.y - e.offsetY);
@@ -153,13 +204,13 @@ export default {
           }
           this.clearCanvas();
           this.redrawAll();
-          this.drawRect(this.rect.realX, this.rect.realY, this.rect.width, this.rect.height, 4, '#13E403', 3)
+          this.drawRect(this.rect.realX, this.rect.realY, this.rect.width, this.rect.height, this.params.radius, this.params.color, this.params.lineWidth)
         }
       }
     },
     mouseUp(e) {
       if (this.type.line) {
-        this.status.lineArr.push({ x: this.lineX, y: this.lineY, clickDrag: this.clickDrag, lineWidth: 3, color: '#000000'})
+        this.status.lineArr.push({ x: this.lineX, y: this.lineY, clickDrag: this.clickDrag, lineWidth: this.params.lineWidth, color: this.params.color})
         this.lineX = [];
         this.lineY = [];
         this.clickDrag = [];
@@ -167,8 +218,8 @@ export default {
         var tempObj = {
           beginPoint: this.beginPoint,
           stopPoint: { x: e.offsetX, y: e.offsetY },
-          range: 10,
-          color: '#DC143C'
+          range: this.params.range,
+          color: this.params.color
         }
         this.status.arrowArr.push(tempObj);
         this.beginPoint = {
@@ -197,8 +248,8 @@ export default {
           y: pointY,
           a: lineX,
           b: lineY,
-          color: '#3300CC',
-          lineWidth: 3
+          color: this.params.color,
+          lineWidth: this.params.lineWidth
         });
         this.storage = {
         };
@@ -208,9 +259,9 @@ export default {
           realY: this.rect.realY,
           width: this.rect.width,
           height: this.rect.height,
-          radius: 4,
-          color: '#13E403',
-          lineWidth: 3
+          radius: this.params.radius,
+          color: this.params.color,
+          lineWidth: this.params.lineWidth
         })
         this.rect = {
           x: 0,
@@ -357,8 +408,12 @@ export default {
   select {
     display: block
   }
+  input {
+    /* display: block */
+  }
   canvas {
     border: 1px solid #000; 
+    display: block;
     margin: auto;
     height: 600px;
   }
