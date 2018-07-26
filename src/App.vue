@@ -34,6 +34,9 @@
       <input v-model="params.angle" type="text">
     </div>
 
+    <button @click="back()">返回</button>
+    <button @click="forward()">前进</button>
+
     <canvas width="800" height="600"
     @mousedown="mouseDown($event)" 
     @mousemove="mouseMove($event)"
@@ -102,12 +105,13 @@ export default {
       },
       polygonVertex: [],
       angle: 0,
+      pushType: [],
+      cancelHistory: []
     }
   },
   watch: {
     params: {
       handler: (val) => {
-        
         let re = /^[0-9]+.?[0-9]*/ ;
         for(let i in val) {
           if(i !== 'color') {
@@ -211,6 +215,7 @@ export default {
     mouseUp(e) {
       if (this.type.line) {
         this.status.lineArr.push({ x: this.lineX, y: this.lineY, clickDrag: this.clickDrag, lineWidth: this.params.lineWidth, color: this.params.color})
+        this.pushType.push('line');
         this.lineX = [];
         this.lineY = [];
         this.clickDrag = [];
@@ -222,6 +227,7 @@ export default {
           color: this.params.color
         }
         this.status.arrowArr.push(tempObj);
+        this.pushType.push('arrow');
         this.beginPoint = {
           x: 0,
           y: 0
@@ -251,8 +257,8 @@ export default {
           color: this.params.color,
           lineWidth: this.params.lineWidth
         });
-        this.storage = {
-        };
+        this.pushType.push('circle');
+        this.storage = {};
       }else if (this.type.rect) {
         this.status.rectArr.push({
           realX: this.rect.realX,
@@ -263,6 +269,7 @@ export default {
           color: this.params.color,
           lineWidth: this.params.lineWidth
         })
+        this.pushType.push('rect');
         this.rect = {
           x: 0,
           y: 0,
@@ -364,6 +371,7 @@ export default {
     },
     //重绘canvas
     redrawAll() {
+      console.log(this.status)
       let arrow = this.status.arrowArr;
       let line = this.status.lineArr;
       let circle = this.status.circleArr;
@@ -392,6 +400,62 @@ export default {
           this.drawRect(val.realX, val.realY, val.width, val.height, val.radius, val.color, val.lineWidth)
         })
       }
+    },
+    //前进
+    forward() {
+      if (this.cancelHistory.length > 0) {
+        let len = this.cancelHistory.length - 1;
+        let lastType = this.cancelHistory[len].type;
+        let lastData = this.cancelHistory[len].data
+        if (lastType == 'img') {
+          this.status.imgArr.push(lastData);
+          this.pushType.push('img');
+        } else if (lastType == 'circle') {
+          this.status.circleArr.push(lastData);
+          this.pushType.push('circle');
+        } else if (lastType == 'rect') {
+          this.status.rectArr.push(lastData);
+          this.pushType.push('rect');
+        } else if (lastType == 'arrow') {
+          this.status.arrowArr.push(lastData);
+          this.pushType.push('arrow');
+        } else if (lastType == 'line') {
+          this.status.lineArr.push(lastData);
+          this.pushType.push('line');
+        }
+        this.cancelHistory.pop();
+        this.clearCanvas();
+        this.redrawAll();
+      } else {
+        alert('没的进了')
+      }
+    },
+    //后退
+    back() {
+      if(this.pushType.length) {
+        console.log(this.pushType)
+        let len = this.pushType.length  - 1;
+        let lastType = this.pushType[len];
+        if (lastType === 'line') {
+          this.cancelHistory.push({ type: 'line', data: this.status.lineArr[this.status.lineArr.length - 1] });
+          this.status.lineArr.pop();
+        }else if (lastType === 'circle') {
+          this.cancelHistory.push({ type: 'circle', data: this.status.circleArr[this.status.circleArr.length - 1] });
+          this.status.circleArr.pop();
+        }else if (lastType === 'arrow') {
+          this.cancelHistory.push({ type: 'arrow', data: this.status.arrowArr[this.status.arrowArr.length - 1] });
+          this.status.arrowArr.pop();
+        }else if (lastType === 'rect') {
+          this.cancelHistory.push({ type: 'rect', data: this.status.rectArr[this.status.rectArr.length - 1] });
+          this.status.rectArr.pop();
+        }
+        this.pushType.pop();
+        this.clearCanvas();
+        this.redrawAll();
+      }else {
+        alert('没的退了')
+      }
+      
     },
     //清空画布
     clearCanvas() {
